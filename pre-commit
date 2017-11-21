@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+PREFIX='.'
+
+echo "=== Pre-commit Sketch processing ===="
+
+unpack () {
+    if [ -e "$1" ]; then
+        if [ -e "${PREFIX}$1" ]; then 
+          rm -rf "${PREFIX}$1"
+        fi
+        if ! unzip "$1" -d "${PREFIX}$1"; then
+          echo "$1 has wrong format."
+          exit 1
+        fi
+    else
+        echo "$1 does not exists."
+        exit 2
+    fi
+}
+
+# create a placeholder text file for the .sketch file, which uniquely identifies
+# it and prevents losing work on a checkout
+replace_with_placeholder () {
+    cat "$1" | openssl dgst -sha256 | tee "$1"
+}
+
+reformat_json () {
+    find "$1" -name "*.json" -type f -exec sh -c "cat {} | jq . | ex -sc 'wq!{}' /dev/stdin" \;
+}
+
+for i in $(git diff --name-only --cached -- *.sketch); do 
+    dir=$(dirname "$i")
+    file=$(basename "$i")
+    cd "$dir"
+    unpack "$file"
+    replace_with_placeholder "$file"
+    reformat_json "${PREFIX}$file"
+    cd -
+
+    git add "$dir/${PREFIX}$file"
+    git add "$dir/$file"
+done
+
+echo "=== End of pre-commit processing ==="
+

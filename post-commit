@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+PREFIX='.'
+
+echo "=== Post-commit Sketch processing ===="
+
+repack () {
+    rm "$1"
+    cd "${PREFIX}$1"
+    zip "../$1" -r *
+    cd ..
+}
+
+# make it easy to iterate over subdirectories
+shopt -s globstar
+
+# repack all the zipfiles
+start_dir="$(pwd)"
+for i in **/${PREFIX}*.sketch; do 
+    dir=$(dirname "$i")
+    base=$(basename "$i")
+    file=${base:${#PREFIX}}
+    cd "$dir"
+    repack "$file"
+    cd "$start_dir"
+done
+
+echo "=== End of post-commit processing ==="
+
